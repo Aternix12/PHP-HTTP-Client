@@ -43,28 +43,29 @@ class HttpClient
     /**
      * Send a GET request to the specified endpoint.
      *
-     * @param string $endpoint
-     * @return array
+     * @param string $endpoint API endpoint.
+     * @param bool $expectJson Whether to expect a JSON response.
+     * @return mixed
      * @throws Exception
      */
-    public function get(string $endpoint): array
+    public function get(string $endpoint, bool $expectJson = true)
     {
-        return $this->sendRequest('GET', $endpoint);
+        return $this->sendRequest('GET', $endpoint, null, $expectJson);
     }
 
     /**
      * Send a POST request to the specified endpoint with a JSON payload.
      *
-     * @param string $endpoint
-     * @param array $payload
-     * @return array
+     * @param string $endpoint API endpoint.
+     * @param array $payload JSON payload.
+     * @param bool $expectJson Whether to expect a JSON response.
+     * @return mixed
      * @throws Exception
      */
-    public function post(string $endpoint, array $payload): array
+    public function post(string $endpoint, array $payload, bool $expectJson = true)
     {
-        return $this->sendRequest('POST', $endpoint, $payload);
+        return $this->sendRequest('POST', $endpoint, $payload, $expectJson);
     }
-
 
     /**
      * Public method to send HTTP requests.
@@ -72,24 +73,26 @@ class HttpClient
      * @param string $method HTTP method (GET, POST, etc.).
      * @param string $endpoint API endpoint.
      * @param array|null $payload JSON payload.
-     * @return array
+     * @param bool $expectJson Whether to expect a JSON response.
+     * @return mixed
      * @throws Exception
      */
-    public function sendRequest(string $method, string $endpoint, array $payload = null): array
+    public function sendRequest(string $method, string $endpoint, array $payload = null, bool $expectJson = true)
     {
-        return $this->send($method, $endpoint, $payload);
+        return $this->send($method, $endpoint, $payload, $expectJson);
     }
 
     /**
-     * Core method to send HTTP requests (Renamed to avoid name conflict).
+     * Core method to send HTTP requests.
      *
      * @param string $method HTTP method (GET, POST, etc.).
      * @param string $endpoint API endpoint.
      * @param array|null $payload JSON payload.
-     * @return array
+     * @param bool $expectJson Whether to expect a JSON response.
+     * @return mixed
      * @throws Exception
      */
-    private function send(string $method, string $endpoint, array $payload = null): array
+    private function send(string $method, string $endpoint, array $payload = null, bool $expectJson = true)
     {
         // Initialize the HTTP context options
         $options = [
@@ -119,6 +122,12 @@ class HttpClient
             throw new Exception("HTTP error $httpCode: $response");
         }
 
+        // Return the raw response if JSON is not expected
+        if (!$expectJson) {
+            return $response;
+        }
+
+        // Parse and return JSON response
         return $this->parseJson($response);
     }
 
@@ -139,7 +148,7 @@ class HttpClient
     /**
      * Parse the JSON response.
      *
-     * @param string $response
+     * @param string $response JSON response string.
      * @return array
      * @throws Exception
      */
@@ -155,7 +164,7 @@ class HttpClient
     /**
      * Retrieve the HTTP response code from headers.
      *
-     * @param array $headers
+     * @param array $headers HTTP response headers.
      * @return int
      */
     private function getHttpResponseCode(array $headers): int
