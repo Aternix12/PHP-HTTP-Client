@@ -2,6 +2,12 @@
 
 /**
  * Lightweight HTTP client to handle basic HTTP requests and JSON payloads.
+ *
+ * This class supports sending GET and POST requests with custom headers and payloads.
+ * It can handle raw response strings and provides error handling for HTTP errors.
+ * The client does not use any external libraries and relies on PHP's built-in functions.
+ *
+ * @package HttpClient
  */
 class HttpClient
 {
@@ -44,13 +50,12 @@ class HttpClient
      * Send a GET request to the specified endpoint.
      *
      * @param string $endpoint API endpoint.
-     * @param bool $expectJson Whether to expect a JSON response.
-     * @return mixed
-     * @throws Exception
+     * @return string The raw response payload.
+     * @throws Exception If an error occurs during the request.
      */
-    public function get(string $endpoint, bool $expectJson = true)
+    public function get(string $endpoint): string
     {
-        return $this->sendRequest('GET', $endpoint, null, $expectJson);
+        return $this->sendRequest('GET', $endpoint);
     }
 
     /**
@@ -58,13 +63,12 @@ class HttpClient
      *
      * @param string $endpoint API endpoint.
      * @param array $payload JSON payload.
-     * @param bool $expectJson Whether to expect a JSON response.
-     * @return mixed
-     * @throws Exception
+     * @return string The raw response payload.
+     * @throws Exception If an error occurs during the request.
      */
-    public function post(string $endpoint, array $payload, bool $expectJson = true)
+    public function post(string $endpoint, array $payload): string
     {
-        return $this->sendRequest('POST', $endpoint, $payload, $expectJson);
+        return $this->sendRequest('POST', $endpoint, $payload);
     }
 
     /**
@@ -73,13 +77,12 @@ class HttpClient
      * @param string $method HTTP method (GET, POST, etc.).
      * @param string $endpoint API endpoint.
      * @param array|null $payload JSON payload.
-     * @param bool $expectJson Whether to expect a JSON response.
-     * @return mixed
-     * @throws Exception
+     * @return string The raw response payload.
+     * @throws Exception If an error occurs during the request.
      */
-    public function sendRequest(string $method, string $endpoint, array $payload = null, bool $expectJson = true)
+    public function sendRequest(string $method, string $endpoint, array $payload = null): string
     {
-        return $this->send($method, $endpoint, $payload, $expectJson);
+        return $this->send($method, $endpoint, $payload);
     }
 
     /**
@@ -88,28 +91,31 @@ class HttpClient
      * @param string $method HTTP method (GET, POST, etc.).
      * @param string $endpoint API endpoint.
      * @param array|null $payload JSON payload.
-     * @param bool $expectJson Whether to expect a JSON response.
-     * @return mixed
-     * @throws Exception
+     * @return string The raw response payload.
+     * @throws Exception If an error occurs during the request.
      */
-    private function send(string $method, string $endpoint, array $payload = null, bool $expectJson = true)
+    private function send(string $method, string $endpoint, array $payload = null): string
     {
         // Initialize the HTTP context options
         $options = [
             'http' => [
                 'method' => $method,
                 'header' => $this->formatHeaders(),
-                'ignore_errors' => true // Capture error messages in response
+                'ignore_errors' => true
             ]
         ];
 
+        // Check and set JSON payload and Content-Type header for POST request
         if ($payload) {
             $jsonPayload = json_encode($payload);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new Exception('Invalid JSON payload: ' . json_last_error_msg());
             }
             $options['http']['content'] = $jsonPayload;
+
+            // Ensure Content-Type is set to application/json for POST requests
             $this->setHeader('Content-Type', 'application/json');
+            $options['http']['header'] = $this->formatHeaders(); // Update headers with Content-Type
         }
 
         $context = stream_context_create($options);
@@ -122,13 +128,8 @@ class HttpClient
             throw new Exception("HTTP error $httpCode: $response");
         }
 
-        // Return the raw response if JSON is not expected
-        if (!$expectJson) {
-            return $response;
-        }
-
-        // Parse and return JSON response
-        return $this->parseJson($response);
+        // Return the raw response
+        return $response;
     }
 
     /**
@@ -143,22 +144,6 @@ class HttpClient
             $headers[] = "$name: $value";
         }
         return implode("\r\n", $headers);
-    }
-
-    /**
-     * Parse the JSON response.
-     *
-     * @param string $response JSON response string.
-     * @return array
-     * @throws Exception
-     */
-    private function parseJson(string $response): array
-    {
-        $data = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception('Invalid JSON response: ' . json_last_error_msg());
-        }
-        return $data;
     }
 
     /**
